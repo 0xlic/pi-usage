@@ -79,7 +79,7 @@ export function snapshotLines(snapshot: UsageSnapshot): string[] {
   }
   if (snapshot.adapterId === "openai-codex" && snapshot.accounts.some((account) =>
     account.metrics.some((metric) => metric.id === "codex-reset-credits" && metric.kind === "status" && Number(metric.value) > 0))) {
-    lines.push("  /usage reset · Redeem a saved usage limit reset (confirmation required)");
+    lines.push("  /reset · List saved usage limit resets (confirmation required)");
   }
   return lines;
 }

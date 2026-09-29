@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import extension from "../src/index.ts";
 
-test("extension registers /usage and /fast commands", () => {
+test("extension registers /usage, /fast and /reset commands", () => {
   const commands: string[] = [];
   const pi = {
     registerCommand: (name: string) => { commands.push(name); },
@@ -10,7 +10,7 @@ test("extension registers /usage and /fast commands", () => {
     getCommands: () => [],
   };
   extension(pi as any);
-  assert.deepEqual(commands, ["fast", "usage"]);
+  assert.deepEqual(commands, ["fast", "usage", "reset"]);
 });
 
 test("session startup does not wait for a slow provider request", async () => {

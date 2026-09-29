@@ -108,7 +108,7 @@ export async function redeemCodexReset(
   fetchFn: typeof fetch = fetch,
   stored: typeof readStoredCredential = readStoredCredential,
 ): Promise<ResetOutcome | undefined> {
-  if (!ctx.hasUI) throw new Error("/usage reset requires TUI or RPC confirmation.");
+  if (!ctx.hasUI) throw new Error("/reset requires TUI or RPC confirmation.");
   const initial = await resolveResetAuth(ctx, stored);
   const signal = AbortSignal.timeout(timeoutSeconds * 1000);
   const availability = parseResetCredits(await request(CREDITS, initial, signal, fetchFn));
@@ -117,13 +117,16 @@ export async function redeemCodexReset(
     return undefined;
   }
   const options = availability.options;
-  const labels = options.map((option, index) => `${index + 1}. ${option.title}${option.expiresAt ? ` (expires ${new Date(option.expiresAt).toLocaleString()})` : ""}`);
-  const selected = options.length > 1 ? await ctx.ui.select("Choose a Codex usage limit reset", labels) : labels[0];
+  // The earliest expiration is first (and therefore the default selection).
+  const expiration = (option: ResetCredit) => option.expiresAt
+    ? new Date(option.expiresAt).toLocaleString() : "unknown";
+  const labels = options.map((option, index) => `${index + 1}. ${option.title} · Expires: ${expiration(option)}`);
+  const selected = await ctx.ui.select(`Saved Codex resets (${availability.count} available)`, labels);
   const index = labels.indexOf(selected ?? "");
   if (index < 0) return undefined;
   const option = options[index]!;
-  const confirmed = await ctx.ui.confirm("Use saved Codex reset?",
-    `${option.title}\n${option.description}\nThis consumes one saved reset for the current Codex account.`);
+  const confirmed = await ctx.ui.confirm("Redeem this saved Codex reset?",
+    `${option.title}\nExpires: ${expiration(option)}\n${option.description}\nThis consumes one saved reset for the current Codex account. Continue?`);
   if (!confirmed) return undefined;
   const current = await resolveResetAuth(ctx, stored);
   if (!unchanged(initial, current)) throw new Error("Codex model or account changed; reset not used.");

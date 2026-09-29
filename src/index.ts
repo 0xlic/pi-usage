@@ -148,9 +148,28 @@ export default function (pi: ExtensionAPI) {
       ctx.ui.notify(lines.join("\n"), current?.state === "ok" || current?.state === "stale" ? "info" : "warning");
       return;
     }
-    if (action === "reset") {
-      if (rest.length) {
-        ctx.ui.notify("Usage: /usage reset", "warning");
+    if (action === "refresh" || action === "current") {
+      const model = liveModel(ctx);
+      await showDetails(ctx, model ? [model.provider] : [], async (update) => {
+        const snapshot = await refreshCurrent(ctx, action === "refresh", model);
+        if (snapshot) update(controller.currentView(ctx, snapshot, model) ?? snapshot);
+      });
+      return;
+    }
+    if (action !== "all") {
+      ctx.ui.notify("Usage: /usage [all|current|refresh|doctor|skills|settings]", "warning");
+      return;
+    }
+    const ids = controller.providerIds(ctx);
+    await showDetails(ctx, ids, (update) => controller.refreshAll(ctx, false, update, ids));
+  }
+
+  pi.registerCommand("usage", { description: "Show provider quotas, balances, and skill activations", handler: command });
+  pi.registerCommand("reset", {
+    description: "List and redeem a saved Codex usage limit reset",
+    handler: async (args, ctx) => {
+      if (args.trim()) {
+        ctx.ui.notify("Usage: /reset", "warning");
         return;
       }
       try {
@@ -163,25 +182,8 @@ export default function (pi: ExtensionAPI) {
       } catch (error) {
         ctx.ui.notify(`Could not redeem Codex reset: ${safeError(error)}`, "error");
       }
-      return;
-    }
-    if (action === "refresh" || action === "current") {
-      const model = liveModel(ctx);
-      await showDetails(ctx, model ? [model.provider] : [], async (update) => {
-        const snapshot = await refreshCurrent(ctx, action === "refresh", model);
-        if (snapshot) update(controller.currentView(ctx, snapshot, model) ?? snapshot);
-      });
-      return;
-    }
-    if (action !== "all") {
-      ctx.ui.notify("Usage: /usage [all|current|refresh|reset|doctor|skills|settings]", "warning");
-      return;
-    }
-    const ids = controller.providerIds(ctx);
-    await showDetails(ctx, ids, (update) => controller.refreshAll(ctx, false, update, ids));
-  }
-
-  pi.registerCommand("usage", { description: "Show provider quotas, balances, and skill activations", handler: command });
+    },
+  });
 
   pi.on("session_start", async (_event, ctx) => {
     config = await loadConfig();
