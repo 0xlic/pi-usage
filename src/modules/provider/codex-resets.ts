@@ -17,8 +17,8 @@ function text(value: unknown, fallback: string): string {
     ? value.replace(/[\x00-\x1f\x7f\x1b]/g, " ").slice(0, 160).trim() : fallback;
 }
 
-function headerValue(value: unknown): value is string {
-  return typeof value === "string" && value.length > 0 && value.length <= 512 && /^[\x20-\x7e]+$/.test(value);
+function headerValue(value: unknown, maxLength = 512): value is string {
+  return typeof value === "string" && value.length > 0 && value.length <= maxLength && /^[\x20-\x7e]+$/.test(value);
 }
 
 /** Fail closed unless the active official Codex account is the Pi OAuth account. */
@@ -31,11 +31,13 @@ export async function resolveResetAuth(
       !model.baseUrl || new URL(model.baseUrl).origin !== ORIGIN) {
     throw new Error("Usage limit resets require the active official OpenAI Codex model.");
   }
+  // Resolving auth may refresh the OAuth token in auth.json. Read the stored
+  // credential afterwards so a successful refresh is not mistaken for an account change.
+  const resolved = await ctx.modelRegistry.getProviderAuth("openai-codex");
   const credential = stored("openai-codex");
-  if (credential?.type !== "oauth" || !headerValue(credential.access) || !headerValue(credential.accountId)) {
+  if (credential?.type !== "oauth" || !headerValue(credential.access, 16_384) || !headerValue(credential.accountId)) {
     throw new Error("Usage limit resets require Pi's OpenAI Codex OAuth login with an account ID.");
   }
-  const resolved = await ctx.modelRegistry.getProviderAuth("openai-codex");
   if (ctx.model?.provider !== model.provider || ctx.model.id !== model.id || ctx.model.baseUrl !== model.baseUrl ||
       resolved?.auth.baseUrl && new URL(resolved.auth.baseUrl).origin !== ORIGIN) {
     throw new Error("The active Codex model or effective auth endpoint changed.");

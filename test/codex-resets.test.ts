@@ -43,6 +43,21 @@ test("Codex reset never mutates before explicit confirmation", async () => {
   assert.match(t.confirmations[0] ?? "", /Expires: unknown/);
 });
 
+test("Codex reset accepts long OAuth tokens after Pi refreshes auth", async () => {
+  const t = setup();
+  const token = "x".repeat(1808);
+  let storedToken = "old-token";
+  t.ctx.modelRegistry.getProviderAuth = async () => {
+    storedToken = token;
+    return { auth: { apiKey: token, baseUrl: `${origin}/backend-api` } };
+  };
+  const stored: any = () => ({ type: "oauth", access: storedToken, accountId: "account-id" });
+  assert.equal(await redeemCodexReset(t.ctx, 10, t.fetchFn, stored), undefined);
+  assert.equal(t.calls.length, 1);
+  assert.equal((t.calls[0]?.init.headers as Record<string, string>).Authorization, `Bearer ${token}`);
+  assert.equal(t.calls[0]?.init.method, "GET");
+});
+
 test("Codex reset only posts to ChatGPT with matched OAuth and unique id", async () => {
   const t = setup();
   t.confirm();
