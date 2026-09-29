@@ -37,11 +37,19 @@ export const antigravityAdapter: UsageAdapter = {
     const fetchedAt = new Date().toISOString();
     const base = { adapterId: this.id, sourceProviderId: target.providerId, displayName: "Antigravity", fetchedAt, accounts: [] };
     const auth = target.auth?.auth as Record<string, unknown> | undefined;
-    const token = auth?.apiKey ?? auth?.access;
+    const credential = auth?.apiKey ?? auth?.access;
+    // Some Antigravity extensions return JSON({ token, projectId }) from OAuth getApiKey.
+    // Never send the JSON wrapper itself as a bearer token.
+    let wrapped: { token?: unknown; projectId?: unknown } | undefined;
+    if (typeof credential === "string" && credential.startsWith("{")) {
+      try { wrapped = JSON.parse(credential) as typeof wrapped; } catch { /* invalid credential */ }
+    }
+    const token = wrapped ? wrapped.token : credential;
     if (typeof token !== "string" || !token) {
       return { ...base, state: "unauthorized", error: "No Antigravity access token; run /login antigravity" };
     }
-    const projectId = (typeof auth?.projectId === "string" && auth.projectId) ||
+    const projectId = (typeof wrapped?.projectId === "string" && wrapped.projectId) ||
+      (typeof auth?.projectId === "string" && auth.projectId) ||
       await localProjectId(target.providerId) || process.env.ANTIGRAVITY_PROJECT_ID;
     if (!projectId) {
       return { ...base, state: "unavailable", error: "Antigravity projectId missing; set ANTIGRAVITY_PROJECT_ID or log in again" };

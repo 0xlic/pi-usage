@@ -42,6 +42,23 @@ test("Antigravity fetches project-scoped model quotas without contacting custom 
   assert.equal((snapshot.accounts[0]?.metrics[0] as any)?.remainingFraction, 0.42);
 });
 
+test("Antigravity unpacks OAuth JSON credentials from Pi providers", async () => {
+  let called = false;
+  const snapshot = await antigravityAdapter.fetch({
+    target: { providerId: "antigravity", auth: auth(JSON.stringify({ token: "oauth-token", projectId: "wrapped-project" })) },
+    signal: new AbortController().signal,
+    force: false,
+    fetchFn: async (_input, init) => {
+      called = true;
+      assert.equal(new Headers(init?.headers).get("Authorization"), "Bearer oauth-token");
+      assert.deepEqual(JSON.parse(String(init?.body)), { project: "wrapped-project" });
+      return Response.json({ models: {} });
+    },
+  });
+  assert.equal(called, true);
+  assert.equal(snapshot.state, "empty");
+});
+
 test("Antigravity reports missing project, expired auth and incompatible data", async () => {
   const target = { providerId: "antigravity", auth: { auth: { apiKey: "token", projectId: "project-test" }, source: "test" } as any };
   const context = { target, signal: new AbortController().signal, force: false, fetchFn: async () => new Response("", { status: 401 }) };
