@@ -4,6 +4,7 @@ import { join } from "node:path";
 import type { Metric, UsageAdapter, UsageSnapshot } from "../../../core/types.ts";
 import { safeError, sameOriginFetch } from "../../../core/security.ts";
 import { compactQuotaSummary } from "../../../ui/format.ts";
+import { antigravityQuotaMetric } from "../antigravity-model.ts";
 
 const ORIGIN = "https://cloudcode-pa.googleapis.com";
 const PATH = "/v1internal:fetchAvailableModels";
@@ -85,8 +86,8 @@ export const antigravityAdapter: UsageAdapter = {
       });
       const selected = target.model?.id;
       // Only claim an exact model match; never display another model's quota as the current one.
-      const currentMetric = selected && metrics.find((metric) => metric.id === selected || metric.id === selected.replace(/^ag-/, ""));
-      const summary = currentMetric ? compactQuotaSummary("Antigravity", [currentMetric as Extract<Metric, { kind: "quota-window" }>]) : undefined;
+      const currentMetric = selected && antigravityQuotaMetric(metrics, selected);
+      const summary = currentMetric ? compactQuotaSummary("Antigravity", [currentMetric]) : undefined;
       return {
         ...base,
         state: metrics.length ? "ok" : "empty",

@@ -15,6 +15,7 @@ import { xaiAdapter } from "./adapters/xai.ts";
 import { kimiCodingAdapter } from "./adapters/kimi-coding.ts";
 import { chooseAdapter, matchModelAcrossAccounts, isAccountCompatibleWithModel, tokenizeModelId } from "./matching.ts";
 import { relativeTime } from "../../ui/format.ts";
+import { antigravityQuotaMetric } from "./antigravity-model.ts";
 import { safeError } from "../../core/security.ts";
 
 export class ProviderUsageController {
@@ -150,10 +151,10 @@ export class ProviderUsageController {
     if (!snapshot) return undefined;
 
     if (snapshot.adapterId === "antigravity" && model?.id && (snapshot.state === "ok" || snapshot.state === "stale")) {
-      const metric = snapshot.accounts.flatMap((account) => account.metrics).find(
-        (item) => item.id === model.id || item.id === model.id.replace(/^ag-/, ""),
+      const metric = antigravityQuotaMetric(
+        snapshot.accounts.flatMap((account) => account.metrics), model.id, ctx.thinkingLevel,
       );
-      if (!metric || metric.kind !== "quota-window") {
+      if (!metric) {
         return { ...snapshot, accounts: [], state: "empty", summary: `No Quota · ${model.id}` };
       }
       return {

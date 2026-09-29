@@ -7,6 +7,27 @@ import { DEFAULT_CONFIG } from "../src/core/config.ts";
 
 const fixture = async (name: string) => readFile(new URL(`./fixtures/${name}`, import.meta.url), "utf8");
 
+test("Antigravity resolves public model IDs to their runtime quota IDs", () => {
+  const controller = new ProviderUsageController(DEFAULT_CONFIG);
+  const snapshot: UsageSnapshot = {
+    adapterId: "antigravity", sourceProviderId: "antigravity", displayName: "Antigravity",
+    state: "ok", fetchedAt: "2026-01-01T00:00:00Z", accounts: [{
+      id: "account", provider: "antigravity", label: "Antigravity", metrics: [
+        { kind: "quota-window", id: "gemini-3.8-flash-tiered", label: "Gemini 3.8 Flash", remainingFraction: 0.8 },
+        { kind: "quota-window", id: "gemini-3.1-pro-low", label: "Gemini 3.1 Pro Low", remainingFraction: 0.7 },
+        { kind: "quota-window", id: "gemini-3.1-pro-high", label: "Gemini 3.1 Pro High", remainingFraction: 0.4 },
+      ],
+    }],
+  };
+  const ctx = { thinkingLevel: "high" } as any;
+  const flash = controller.currentView(ctx, snapshot, { id: "gemini-3.8-flash" } as any);
+  assert.equal(flash?.accounts[0]?.metrics[0]?.id, "gemini-3.8-flash-tiered");
+  assert.match(flash?.summary ?? "", /80%/);
+  const pro = controller.currentView(ctx, snapshot, { id: "gemini-3.1-pro" } as any);
+  assert.equal(pro?.accounts[0]?.metrics[0]?.id, "gemini-3.1-pro-high");
+  assert.equal(controller.currentView(ctx, snapshot, { id: "gemini-3.7-flash" } as any)?.state, "empty");
+});
+
 test("native Antigravity current view never borrows another model's quota", () => {
   const controller = new ProviderUsageController(DEFAULT_CONFIG);
   const snapshot: UsageSnapshot = {
