@@ -30,6 +30,7 @@ interface WhamUsageResponse {
     has_credits?: boolean;
     balance?: string;
   } | null;
+  rate_limit_reset_credits?: { available_count?: number } | null;
 }
 
 function windowLabel(window: WhamWindow | null | undefined, fallback: string): string {
@@ -159,6 +160,11 @@ export const openAICodexAdapter: UsageAdapter = {
 
       const secondary = parseWindow(data.rate_limit?.secondary_window, "secondary-window", "Codex 7d");
       if (secondary) metrics.push(secondary);
+
+      const resetCount = data.rate_limit_reset_credits?.available_count;
+      if (typeof resetCount === "number" && Number.isSafeInteger(resetCount) && resetCount >= 0) {
+        metrics.push({ kind: "status", id: "codex-reset-credits", label: "Saved usage limit resets", value: String(resetCount) });
+      }
 
       const planLabel = data.plan_type ? `ChatGPT ${data.plan_type.toUpperCase()}` : "ChatGPT Plus/Pro";
       const accountLabel = data.email || data.user_id || planLabel;

@@ -77,5 +77,9 @@ export function snapshotLines(snapshot: UsageSnapshot): string[] {
     if (!account.metrics.length) lines.push("    No quota reported");
     for (const metric of account.metrics) lines.push(`    ${metricText(metric)}`);
   }
+  if (snapshot.adapterId === "openai-codex" && snapshot.accounts.some((account) =>
+    account.metrics.some((metric) => metric.id === "codex-reset-credits" && metric.kind === "status" && Number(metric.value) > 0))) {
+    lines.push("  /usage reset · Redeem a saved usage limit reset (confirmation required)");
+  }
   return lines;
 }

@@ -93,6 +93,7 @@ Pi Usage 只注册 `/usage` 这一个命令。
 | `/usage all` | 与 `/usage` 相同 |
 | `/usage current` | 只查看当前模型所属服务商 |
 | `/usage refresh` | 跳过缓存，立即刷新当前服务商 |
+| `/usage reset` | 确认后兑换当前 Codex OAuth 账户已保存的用量重置次数 |
 | `/usage doctor` | 查看当前模型、适配器、认证状态和桥接诊断 |
 | `/usage skills` | 列出所有已安装 Skill 及其累计使用次数，包括零次 |
 | `/usage settings` | 查看插件设置和配置文件位置 |
@@ -130,6 +131,8 @@ Pi 暂时没有提供独立的 `skill_invoked` 事件。Pi Usage 会在以下两
 原生服务商通过官方域名查询，并使用 Pi 已解析的认证信息。只有服务商返回重置时间时，插件才会显示倒计时。
 
 CLIProxyAPI 需要在服务端安装 [`pi-bridge`](https://github.com/abix5/pi-cliproxyapi-bridge)。Pi Usage 使用普通代理 API Key，不会请求或保存 CLIProxyAPI Management Key。界面只展示桥接接口实际返回的账户和额度池。
+
+当前使用官方 OpenAI Codex 模型时，`/usage current` 会显示接口返回的剩余重置次数。`/usage reset` 会先查询可用的重置机会，供选择并明确确认后才兑换；取消不会发送修改请求。只允许当前 ChatGPT OAuth 账户使用，代理和 API Key 不支持。成功后刷新额度。此功能依赖 ChatGPT 未公开文档的内部接口，可能变更。
 
 原生 Antigravity 需要 Pi 已注册 `antigravity` provider，并在其 `auth.json` 记录中有 projectId（或设置 `ANTIGRAVITY_PROJECT_ID`）。请先通过 Antigravity 扩展登录。插件使用 Pi 解析的访问令牌调用 Google **未公开文档的内部** `fetchAvailableModels` 接口，不自行刷新 OAuth。仅显示接口实际返回的按模型额度，不推断 5 小时或周窗口；自定义代理仍走 `pi-bridge`。
 

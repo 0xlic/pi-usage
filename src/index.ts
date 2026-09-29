@@ -3,6 +3,7 @@ import type { Api, Model } from "@earendil-works/pi-ai";
 import { loadConfig, type UsageConfig } from "./core/config.ts";
 import type { UsageSnapshot } from "./core/types.ts";
 import { ProviderUsageController } from "./modules/provider/controller.ts";
+import { redeemCodexReset } from "./modules/provider/codex-resets.ts";
 import { SkillUsageController } from "./modules/skills/controller.ts";
 import { showDetails } from "./ui/details.ts";
 import { showSkillStats } from "./ui/skills.ts";
@@ -136,6 +137,23 @@ export default function (pi: ExtensionAPI) {
       ctx.ui.notify(lines.join("\n"), current?.state === "ok" || current?.state === "stale" ? "info" : "warning");
       return;
     }
+    if (action === "reset") {
+      if (rest.length) {
+        ctx.ui.notify("Usage: /usage reset", "warning");
+        return;
+      }
+      try {
+        const outcome = await redeemCodexReset(ctx, config.refresh.timeoutSeconds);
+        if (outcome) {
+          ctx.ui.notify({ reset: "Codex usage reset.", already_redeemed: "Codex usage reset was already completed.",
+            nothing_to_reset: "Codex usage does not need a reset.", no_credit: "No saved Codex reset is available." }[outcome.code], "info");
+          await refreshCurrent(ctx, true);
+        }
+      } catch (error) {
+        ctx.ui.notify(`Could not redeem Codex reset: ${safeError(error)}`, "error");
+      }
+      return;
+    }
     if (action === "refresh" || action === "current") {
       const model = liveModel(ctx);
       await showDetails(ctx, model ? [model.provider] : [], async (update) => {
@@ -145,7 +163,7 @@ export default function (pi: ExtensionAPI) {
       return;
     }
     if (action !== "all") {
-      ctx.ui.notify("Usage: /usage [all|current|refresh|doctor|skills|settings]", "warning");
+      ctx.ui.notify("Usage: /usage [all|current|refresh|reset|doctor|skills|settings]", "warning");
       return;
     }
     const ids = controller.providerIds(ctx);
