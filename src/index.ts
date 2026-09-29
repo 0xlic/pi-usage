@@ -181,7 +181,9 @@ export default function (pi: ExtensionAPI) {
     controller = new ProviderUsageController(config);
     skillController.refreshCatalog(ctx.cwd);
     startTimer(ctx);
-    await refreshCurrent(ctx);
+    // Do not make Pi's session_start dispatch wait for provider auth/network I/O.
+    // refreshCurrent renders cached/loading state synchronously and handles its own failures.
+    void refreshCurrent(ctx);
   });
 
   pi.on("input", async (event, ctx) => {
@@ -208,7 +210,8 @@ export default function (pi: ExtensionAPI) {
     observedModelKey = modelKey(event.model);
     const cached = event.model ? controller.cache.values().find((item) => item.sourceProviderId === event.model.provider) : undefined;
     render(ctx, cached, event.model);
-    await refreshCurrent(ctx, false, event.model);
+    // Keep model selection responsive and avoid blocking later extension handlers.
+    void refreshCurrent(ctx, false, event.model);
   });
   pi.on("session_shutdown", async () => {
     if (timer) clearInterval(timer);
