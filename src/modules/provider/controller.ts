@@ -95,7 +95,7 @@ export class ProviderUsageController {
     return this.fetchTarget(await this.target(ctx, model.provider, model), force);
   }
 
-  async refreshAll(ctx: ExtensionContext, force = false): Promise<UsageSnapshot[]> {
+  providerIds(ctx: ExtensionContext): string[] {
     const providerIds = new Set<string>();
 
     // 1. Providers that have available models registered
@@ -140,8 +140,25 @@ export class ProviderUsageController {
       providerIds.add(ctx.model.provider);
     }
 
-    const targets = await Promise.all([...providerIds].map((id) => this.target(ctx, id)));
-    return Promise.all(targets.map((target) => this.fetchTarget(target, force)));
+    return [...providerIds];
+  }
+
+  async refreshAll(ctx: ExtensionContext, force = false, onSnapshot?: (snapshot: UsageSnapshot) => void, ids = this.providerIds(ctx)): Promise<UsageSnapshot[]> {
+    // Resolve auth and fetch independently: one slow provider must not hold up the others.
+    return Promise.all(ids.map(async (id) => {
+      let snapshot: UsageSnapshot;
+      try {
+        snapshot = await this.fetchTarget(await this.target(ctx, id), force);
+      } catch (error) {
+        snapshot = {
+          adapterId: "none", sourceProviderId: id,
+          displayName: ctx.modelRegistry.getProviderDisplayName(id),
+          state: "unavailable", fetchedAt: new Date().toISOString(), accounts: [], error: safeError(error),
+        };
+      }
+      onSnapshot?.(snapshot);
+      return snapshot;
+    }));
   }
 
   /**

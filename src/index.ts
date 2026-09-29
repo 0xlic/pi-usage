@@ -136,22 +136,20 @@ export default function (pi: ExtensionAPI) {
       ctx.ui.notify(lines.join("\n"), current?.state === "ok" || current?.state === "stale" ? "info" : "warning");
       return;
     }
-    if (action === "refresh") {
-      const snapshot = await refreshCurrent(ctx, true);
-      await showDetails(ctx, snapshot ? [controller.currentView(ctx, snapshot) ?? snapshot] : []);
-      return;
-    }
-    if (action === "current") {
-      const snapshot = await refreshCurrent(ctx);
-      await showDetails(ctx, snapshot ? [controller.currentView(ctx, snapshot) ?? snapshot] : []);
+    if (action === "refresh" || action === "current") {
+      const model = liveModel(ctx);
+      await showDetails(ctx, model ? [model.provider] : [], async (update) => {
+        const snapshot = await refreshCurrent(ctx, action === "refresh", model);
+        if (snapshot) update(controller.currentView(ctx, snapshot, model) ?? snapshot);
+      });
       return;
     }
     if (action !== "all") {
       ctx.ui.notify("Usage: /usage [all|current|refresh|doctor|skills|settings]", "warning");
       return;
     }
-    const snapshots = await controller.refreshAll(ctx, false);
-    await showDetails(ctx, snapshots);
+    const ids = controller.providerIds(ctx);
+    await showDetails(ctx, ids, (update) => controller.refreshAll(ctx, false, update, ids));
   }
 
   pi.registerCommand("usage", { description: "Show provider quotas, balances, and skill activations", handler: command });

@@ -136,6 +136,32 @@ test("controller.refreshAll correctly isolates model baseUrl and filters proxy a
   assert.equal(codexSnapshot.accounts[0]?.metrics.length, 2);
 });
 
+test("refreshAll publishes fast providers before slow auth finishes and isolates errors", async () => {
+  const controller = new ProviderUsageController(DEFAULT_CONFIG);
+  let release!: () => void;
+  const slow = new Promise<void>((resolve) => { release = resolve; });
+  const ctx: any = {
+    modelRegistry: {
+      getProvider: (id: string) => ({ name: id }),
+      getProviderDisplayName: (id: string) => id,
+      getProviderAuth: async (id: string) => {
+        if (id === "slow") { await slow; throw new Error("auth failed"); }
+        return undefined;
+      },
+      getAll: () => [],
+    },
+  };
+  const seen: string[] = [];
+  const pending = controller.refreshAll(ctx, false, (s) => { seen.push(s.sourceProviderId); }, ["slow", "fast"]);
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.deepEqual(seen, ["fast"]);
+  release();
+  const snapshots = await pending;
+  assert.deepEqual(seen, ["fast", "slow"]);
+  assert.equal(snapshots[0]?.sourceProviderId, "slow");
+  assert.equal(snapshots[1]?.sourceProviderId, "fast");
+});
+
 test("unsupported Google Vertex auth resolution never leaves the footer at Loading", async () => {
   const controller = new ProviderUsageController(DEFAULT_CONFIG);
   const model = {
