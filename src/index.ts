@@ -24,7 +24,14 @@ export default function (pi: ExtensionAPI) {
   let observedModelKey: string | undefined;
   let renderGeneration = 0;
   const skillController = new SkillUsageController(pi);
-  const fast = registerCodexFast(pi, (ctx) => render(ctx));
+  const fast = registerCodexFast(pi, (ctx) => {
+    const cached = ctx.model
+      ? controller?.cache.values().find((item) => item.sourceProviderId === ctx.model?.provider)
+      : undefined;
+    render(ctx, cached);
+    // Fast mode does not invalidate quota data. Only query when no prior snapshot exists.
+    if (!cached) void refreshCurrent(ctx);
+  });
 
   function modelKey(model: Model<Api> | undefined): string | undefined {
     return model ? `${model.provider}/${model.id}/${model.baseUrl}` : undefined;
