@@ -7,6 +7,24 @@ import { DEFAULT_CONFIG } from "../src/core/config.ts";
 
 const fixture = async (name: string) => readFile(new URL(`./fixtures/${name}`, import.meta.url), "utf8");
 
+test("native Antigravity current view never borrows another model's quota", () => {
+  const controller = new ProviderUsageController(DEFAULT_CONFIG);
+  const snapshot: UsageSnapshot = {
+    adapterId: "antigravity", sourceProviderId: "antigravity", displayName: "Antigravity",
+    state: "ok", fetchedAt: "2026-01-01T00:00:00Z",
+    accounts: [{ id: "account", provider: "antigravity", label: "Antigravity", metrics: [
+      { kind: "quota-window", id: "claude-sonnet-4-6", label: "Claude Sonnet", remainingFraction: 0.42 },
+      { kind: "quota-window", id: "gemini-3-flash", label: "Gemini Flash", remainingFraction: 0.8 },
+    ] }],
+  };
+  const matched = controller.currentView({} as any, snapshot, { id: "ag-claude-sonnet-4-6" } as any);
+  assert.equal(matched?.accounts[0]?.metrics.length, 1);
+  assert.match(matched?.summary ?? "", /Claude Sonnet 42%/);
+  const unmatched = controller.currentView({} as any, snapshot, { id: "ag-unknown" } as any);
+  assert.equal(unmatched?.state, "empty");
+  assert.equal(unmatched?.accounts.length, 0);
+});
+
 test("controller.refreshAll correctly isolates model baseUrl and filters proxy accounts", async () => {
   const deepseekBody = await fixture("deepseek-balance.json");
   const bridgeBody = await fixture("pi-bridge-usage.json");

@@ -113,6 +113,7 @@ The same Skill is counted once per agent run, so a `/skill:name` command followe
 | Provider | Level | Authentication | Displayed data |
 | --- | --- | --- | --- |
 | OpenAI Codex | Full quota | ChatGPT Plus/Pro OAuth | 5-hour and 7-day quota with reset times |
+| Antigravity | Per-model quota | Antigravity OAuth (e.g. `pi-antigravity`) | Remaining fraction and reset time returned by Cloud Code Assist |
 | Anthropic Claude | Full or limited | Claude OAuth or API key | OAuth subscription windows; API keys show request/token rate-limit headroom |
 | DeepSeek | Balance | API key | Official balances by currency |
 | GLM / Zhipu BigModel | Full or limited | API key | Coding Plan 5-hour and 7-day quota; standard keys have no official balance query |
@@ -127,6 +128,8 @@ The same Skill is counted once per agent run, so a `/skill:name` command followe
 ### How provider data is handled
 
 Native providers are queried through their official origins using authentication resolved by Pi. Reset countdowns are shown only when the provider returns a reset timestamp.
+
+Antigravity requires the `antigravity` provider registered in Pi and a project ID in its `auth.json` entry (or `ANTIGRAVITY_PROJECT_ID`). Log in through your Antigravity provider extension first. Pi Usage uses the refreshed access token resolved by Pi and queries Google's **internal, undocumented** `fetchAvailableModels` endpoint; it does not refresh OAuth credentials itself. Quotas are per model and are not interpreted as 5-hour or weekly windows. Custom proxy providers continue to use `pi-bridge`, not this native adapter.
 
 For CLIProxyAPI, install [`pi-bridge`](https://github.com/abix5/pi-cliproxyapi-bridge) on the CLIProxyAPI server. Pi Usage uses the normal proxy API key and never requests or stores the CLIProxyAPI Management Key. It displays only the accounts and quota pools returned by the bridge.
 

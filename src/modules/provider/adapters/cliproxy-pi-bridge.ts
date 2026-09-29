@@ -18,6 +18,7 @@ const NATIVE_PROVIDER_IDS = new Set([
   "opencode",
   "google",
   "google-vertex",
+  "antigravity",
 ]);
 
 type BridgeGroup = { id?: string; label?: string; remainingFraction?: number; resetTime?: string; models?: Array<{ id?: string; displayName?: string; remainingFraction?: number; resetTime?: string }> };

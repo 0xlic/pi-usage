@@ -4,6 +4,7 @@ import type { UsageConfig } from "../../core/config.ts";
 import { UsageCache } from "../../core/cache.ts";
 import type { Metric, ProviderTarget, UsageAdapter, UsageSnapshot } from "../../core/types.ts";
 import { anthropicAdapter } from "./adapters/anthropic.ts";
+import { antigravityAdapter } from "./adapters/antigravity.ts";
 import { cliProxyBridgeAdapter } from "./adapters/cliproxy-pi-bridge.ts";
 import { deepSeekAdapter } from "./adapters/deepseek.ts";
 import { glmAdapter } from "./adapters/glm.ts";
@@ -21,7 +22,7 @@ export class ProviderUsageController {
   private adapters: UsageAdapter[];
 
   constructor(private config: UsageConfig, private fetchFn: typeof fetch = fetch) {
-    this.adapters = [deepSeekAdapter, openAICodexAdapter, xaiAdapter, anthropicAdapter, glmAdapter, openRouterAdapter, openCodeGoAdapter, kimiCodingAdapter, cliProxyBridgeAdapter];
+    this.adapters = [deepSeekAdapter, openAICodexAdapter, xaiAdapter, anthropicAdapter, glmAdapter, openRouterAdapter, openCodeGoAdapter, kimiCodingAdapter, antigravityAdapter, cliProxyBridgeAdapter];
   }
 
   setConfig(config: UsageConfig): void { this.config = config; }
@@ -72,6 +73,7 @@ export class ProviderUsageController {
     if (adapter.id === "openrouter") return this.config.adapters.openrouter.enabled;
     if (adapter.id === "opencode-go") return this.config.adapters.opencodeGo.enabled;
     if (adapter.id === "kimi-coding") return this.config.adapters.kimiCoding.enabled;
+    if (adapter.id === "antigravity") return this.config.adapters.antigravity.enabled;
     return true;
   }
 
@@ -121,6 +123,7 @@ export class ProviderUsageController {
       "opencode-go",
       "opencode",
       "kimi-coding",
+      "antigravity",
     ];
     for (const id of knownProviders) {
       if (ctx.modelRegistry.getProviderAuthStatus(id).configured) {
@@ -145,6 +148,20 @@ export class ProviderUsageController {
    */
   currentView(ctx: ExtensionContext, snapshot?: UsageSnapshot, model: Model<Api> | undefined = ctx.model): UsageSnapshot | undefined {
     if (!snapshot) return undefined;
+
+    if (snapshot.adapterId === "antigravity" && model?.id && (snapshot.state === "ok" || snapshot.state === "stale")) {
+      const metric = snapshot.accounts.flatMap((account) => account.metrics).find(
+        (item) => item.id === model.id || item.id === model.id.replace(/^ag-/, ""),
+      );
+      if (!metric || metric.kind !== "quota-window") {
+        return { ...snapshot, accounts: [], state: "empty", summary: `No Quota · ${model.id}` };
+      }
+      return {
+        ...snapshot,
+        accounts: snapshot.accounts.map((account) => ({ ...account, metrics: [metric] })),
+        summary: `${metric.label} ${Math.round(metric.remainingFraction * 100)}%${metric.resetAt ? ` (${relativeTime(metric.resetAt)})` : ""}`,
+      };
+    }
 
     // Native adapters already know the exact semantics of their own metrics.
     // Cross-account/model matching is only needed for multiplexed pi-bridge snapshots.

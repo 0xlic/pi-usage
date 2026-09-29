@@ -113,6 +113,7 @@ Pi 暂时没有提供独立的 `skill_invoked` 事件。Pi Usage 会在以下两
 | 服务商 | 支持级别 | 认证方式 | 显示内容 |
 | --- | --- | --- | --- |
 | OpenAI Codex | 完整额度 | ChatGPT Plus/Pro OAuth | 5 小时和 7 天额度及重置时间 |
+| Antigravity | 按模型额度 | Antigravity OAuth（如 `pi-antigravity`） | Cloud Code Assist 返回的剩余额度与重置时间 |
 | Anthropic Claude | 完整或有限 | Claude OAuth 或 API Key | OAuth 订阅额度；API Key 只显示请求数和 Token 限流余量 |
 | DeepSeek | 余额 | API Key | 官方接口返回的各币种余额 |
 | GLM / 智谱 BigModel | 完整或有限 | API Key | Coding Plan 的 5 小时和 7 天额度；普通 Key 没有官方余额接口 |
@@ -129,6 +130,8 @@ Pi 暂时没有提供独立的 `skill_invoked` 事件。Pi Usage 会在以下两
 原生服务商通过官方域名查询，并使用 Pi 已解析的认证信息。只有服务商返回重置时间时，插件才会显示倒计时。
 
 CLIProxyAPI 需要在服务端安装 [`pi-bridge`](https://github.com/abix5/pi-cliproxyapi-bridge)。Pi Usage 使用普通代理 API Key，不会请求或保存 CLIProxyAPI Management Key。界面只展示桥接接口实际返回的账户和额度池。
+
+原生 Antigravity 需要 Pi 已注册 `antigravity` provider，并在其 `auth.json` 记录中有 projectId（或设置 `ANTIGRAVITY_PROJECT_ID`）。请先通过 Antigravity 扩展登录。插件使用 Pi 解析的访问令牌调用 Google **未公开文档的内部** `fetchAvailableModels` 接口，不自行刷新 OAuth。仅显示接口实际返回的按模型额度，不推断 5 小时或周窗口；自定义代理仍走 `pi-bridge`。
 
 代理账户会按模型族和模型 ID 匹配，当前模型不能借用无关服务商的额度。共享额度池仍按一个池显示。例如，Antigravity 只返回一个共享池时，插件不会凭空拆成 5 小时和周额度。
 

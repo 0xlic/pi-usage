@@ -16,8 +16,9 @@ export interface UsageConfig {
     openrouter: { enabled: boolean };
     opencodeGo: { enabled: boolean };
     kimiCoding: { enabled: boolean };
+    antigravity: { enabled: boolean };
   };
-  providerOverrides: Record<string, "deepseek" | "cliproxy-pi-bridge" | "openai-codex" | "xai" | "anthropic" | "glm" | "openrouter" | "opencode-go" | "kimi-coding" | "disabled">;
+  providerOverrides: Record<string, "deepseek" | "cliproxy-pi-bridge" | "openai-codex" | "xai" | "anthropic" | "glm" | "openrouter" | "opencode-go" | "kimi-coding" | "antigravity" | "disabled">;
 }
 
 export const DEFAULT_CONFIG: UsageConfig = {
@@ -34,6 +35,7 @@ export const DEFAULT_CONFIG: UsageConfig = {
     openrouter: { enabled: true },
     opencodeGo: { enabled: true },
     kimiCoding: { enabled: true },
+    antigravity: { enabled: true },
   },
   providerOverrides: {},
 };
@@ -54,7 +56,7 @@ function providerOverrides(value: unknown): UsageConfig["providerOverrides"] {
   if (!value || typeof value !== "object" || Array.isArray(value)) return {};
   const allowed = new Set([
     "deepseek", "cliproxy-pi-bridge", "openai-codex", "xai", "anthropic",
-    "glm", "openrouter", "opencode-go", "kimi-coding", "disabled",
+    "glm", "openrouter", "opencode-go", "kimi-coding", "antigravity", "disabled",
   ]);
   return Object.fromEntries(
     Object.entries(value).filter((entry): entry is [string, UsageConfig["providerOverrides"][string]] =>
@@ -87,6 +89,7 @@ export async function loadConfig(): Promise<UsageConfig> {
         openrouter: { enabled: boolean(parsed.adapters?.openrouter?.enabled, DEFAULT_CONFIG.adapters.openrouter.enabled) },
         opencodeGo: { enabled: boolean(parsed.adapters?.opencodeGo?.enabled, DEFAULT_CONFIG.adapters.opencodeGo.enabled) },
         kimiCoding: { enabled: boolean(parsed.adapters?.kimiCoding?.enabled, DEFAULT_CONFIG.adapters.kimiCoding.enabled) },
+        antigravity: { enabled: boolean(parsed.adapters?.antigravity?.enabled, DEFAULT_CONFIG.adapters.antigravity.enabled) },
       },
       providerOverrides: providerOverrides(parsed.providerOverrides),
     };

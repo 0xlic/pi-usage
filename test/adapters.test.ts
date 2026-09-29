@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { deepSeekAdapter } from "../src/modules/provider/adapters/deepseek.ts";
+import { antigravityAdapter } from "../src/modules/provider/adapters/antigravity.ts";
 import { cliProxyBridgeAdapter } from "../src/modules/provider/adapters/cliproxy-pi-bridge.ts";
 import { openAICodexAdapter } from "../src/modules/provider/adapters/openai-codex.ts";
 import { xaiAdapter } from "../src/modules/provider/adapters/xai.ts";
@@ -15,6 +16,39 @@ import { deduplicateSharedQuotaGroups, matchModelAcrossAccounts, isAccountCompat
 const fixture = async (name: string) => readFile(new URL(`./fixtures/${name}`, import.meta.url), "utf8");
 
 function auth(apiKey = "sk-test") { return { auth: { apiKey }, source: "test" }; }
+
+test("Antigravity fetches project-scoped model quotas without contacting custom proxies", async () => {
+  assert.equal(antigravityAdapter.canHandle({ providerId: "my-antigravity-proxy" }), false);
+  assert.equal(antigravityAdapter.canHandle({ providerId: "antigravity" }), true);
+  const body = await fixture("antigravity-models.json");
+  let requests = 0;
+  const snapshot = await antigravityAdapter.fetch({
+    target: { providerId: "antigravity", auth: { auth: { apiKey: "token", projectId: "project-test" }, source: "test" } as any },
+    signal: new AbortController().signal,
+    force: false,
+    fetchFn: async (input, init) => {
+      requests++;
+      assert.equal(String(input), "https://cloudcode-pa.googleapis.com/v1internal:fetchAvailableModels");
+      assert.equal(init?.method, "POST");
+      assert.deepEqual(JSON.parse(String(init?.body)), { project: "project-test" });
+      assert.equal(new Headers(init?.headers).get("Authorization"), "Bearer token");
+      return new Response(body, { status: 200 });
+    },
+  });
+  assert.equal(requests, 1);
+  assert.equal(snapshot.state, "ok");
+  assert.equal(snapshot.accounts[0]?.metrics.length, 2);
+  assert.equal(snapshot.accounts[0]?.metrics[0]?.kind, "quota-window");
+  assert.equal((snapshot.accounts[0]?.metrics[0] as any)?.remainingFraction, 0.42);
+});
+
+test("Antigravity reports missing project, expired auth and incompatible data", async () => {
+  const target = { providerId: "antigravity", auth: { auth: { apiKey: "token", projectId: "project-test" }, source: "test" } as any };
+  const context = { target, signal: new AbortController().signal, force: false, fetchFn: async () => new Response("", { status: 401 }) };
+  assert.equal((await antigravityAdapter.fetch(context)).state, "unauthorized");
+  assert.equal((await antigravityAdapter.fetch({ ...context, fetchFn: async () => Response.json({}) })).state, "incompatible");
+  assert.equal((await antigravityAdapter.fetch({ ...context, target: { providerId: "antigravity" } })).state, "unauthorized");
+});
 
 test("DeepSeek rejects malformed provider URLs without throwing during adapter selection", () => {
   assert.equal(deepSeekAdapter.canHandle({ providerId: "deepseek", baseUrl: "://bad-url" }), false);
