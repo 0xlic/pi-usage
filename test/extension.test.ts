@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import extension from "../src/index.ts";
 
-test("extension registers only the /usage command", () => {
+test("extension registers /usage and /fast commands", () => {
   const commands: string[] = [];
   const pi = {
     registerCommand: (name: string) => { commands.push(name); },
@@ -10,5 +10,5 @@ test("extension registers only the /usage command", () => {
     getCommands: () => [],
   };
   extension(pi as any);
-  assert.deepEqual(commands, ["usage"]);
+  assert.deepEqual(commands, ["fast", "usage"]);
 });

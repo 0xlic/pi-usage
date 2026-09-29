@@ -85,7 +85,7 @@ Reload the current session after installing or updating the plugin.
 
 ## Commands
 
-Pi Usage registers only the `/usage` command.
+Pi Usage registers `/usage` and `/fast`.
 
 | Command | What it does |
 | --- | --- |
@@ -94,6 +94,7 @@ Pi Usage registers only the `/usage` command.
 | `/usage current` | Shows data for the active model's provider |
 | `/usage refresh` | Bypasses the cache and refreshes the active provider |
 | `/usage reset` | Redeems a saved Codex usage-limit reset for the active OAuth account, after explicit confirmation |
+| `/fast` | Toggles Codex Fast for supported official models; persists across sessions |
 | `/usage doctor` | Shows the active model, adapter, authentication state, and bridge diagnostics |
 | `/usage skills` | Lists every installed Skill and its accumulated use count, including zero |
 | `/usage settings` | Shows the current plugin settings and configuration path |
@@ -131,6 +132,8 @@ The same Skill is counted once per agent run, so a `/skill:name` command followe
 Native providers are queried through their official origins using authentication resolved by Pi. Reset countdowns are shown only when the provider returns a reset timestamp.
 
 For the active official OpenAI Codex model, `/usage current` also shows saved usage-limit resets when reported. Run `/usage reset` to check available earned resets and choose one. A confirmation is required before consuming a reset; cancellation sends no mutation. Only the currently selected ChatGPT OAuth account can redeem a reset (not a proxy or API key). After redemption, quota data is refreshed. This uses undocumented ChatGPT endpoints that may change.
+
+`/fast` toggles Codex Fast mode (about 1.5× faster, but uses more of your plan allowance). It applies only to official `openai-codex-responses` models `gpt-5.4`, `gpt-5.5`, `gpt-5.6-sol`, `gpt-5.6-terra`, and `gpt-5.6-luna` at `https://chatgpt.com`; proxies and unsupported models are not modified. The extension sends `service_tier: "priority"` when enabled and `"default"` when disabled. The preference defaults to off and is saved in `~/.pi/agent/pi-usage/codex-fast.json`. A malformed file will not be overwritten.
 
 Antigravity requires the `antigravity` provider registered in Pi and a project ID in its `auth.json` entry (or `ANTIGRAVITY_PROJECT_ID`). Log in through your Antigravity provider extension first. Pi Usage uses the refreshed access token resolved by Pi and queries Google's **internal, undocumented** `fetchAvailableModels` endpoint; it does not refresh OAuth credentials itself. Quotas are per model and are not interpreted as 5-hour or weekly windows. Custom proxy providers continue to use `pi-bridge`, not this native adapter.
 

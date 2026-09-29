@@ -4,6 +4,7 @@ import { loadConfig, type UsageConfig } from "./core/config.ts";
 import type { UsageSnapshot } from "./core/types.ts";
 import { ProviderUsageController } from "./modules/provider/controller.ts";
 import { redeemCodexReset } from "./modules/provider/codex-resets.ts";
+import { registerCodexFast } from "./modules/provider/codex-fast.ts";
 import { SkillUsageController } from "./modules/skills/controller.ts";
 import { showDetails } from "./ui/details.ts";
 import { showSkillStats } from "./ui/skills.ts";
@@ -23,6 +24,7 @@ export default function (pi: ExtensionAPI) {
   let observedModelKey: string | undefined;
   let renderGeneration = 0;
   const skillController = new SkillUsageController(pi);
+  const fast = registerCodexFast(pi, (ctx) => render(ctx));
 
   function modelKey(model: Model<Api> | undefined): string | undefined {
     return model ? `${model.provider}/${model.id}/${model.baseUrl}` : undefined;
@@ -43,7 +45,9 @@ export default function (pi: ExtensionAPI) {
 
   function render(ctx: ExtensionContext, snapshot?: UsageSnapshot, model: Model<Api> | undefined = ctx.model): void {
     const current = controller.currentView(ctx, snapshot, model);
-    ctx.ui.setStatus(STATUS_ID, config.display.status ? ctx.ui.theme.fg(current?.state === "ok" ? "success" : current?.state === "stale" ? "warning" : "dim", compactSnapshot(current)) : undefined);
+    const status = compactSnapshot(current);
+    ctx.ui.setStatus(STATUS_ID, config.display.status ? ctx.ui.theme.fg(current?.state === "ok" ? "success" : current?.state === "stale" ? "warning" : "dim",
+      fast.isEnabled(model) ? `Fast · ${status}` : status) : undefined);
     ctx.ui.setWidget(WIDGET_ID, config.display.widget && current ? snapshotLines(current) : undefined, { placement: "belowEditor" });
   }
 
