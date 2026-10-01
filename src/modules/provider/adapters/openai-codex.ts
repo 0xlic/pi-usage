@@ -89,14 +89,42 @@ async function resolveLocalCodexAuth(): Promise<{ accessToken?: string | undefin
 
 export const openAICodexAdapter: UsageAdapter = {
   id: "openai-codex",
-  label: "OpenAI Codex (ChatGPT)",
+  label: "OpenAI / OpenAI Codex (ChatGPT)",
   canHandle(target) {
+    // Native Sign in with ChatGPT uses openai-responses at api.openai.com,
+    // not the legacy Codex backend. API-key logins are not subscriptions.
+    if (target.providerId.toLowerCase() === "openai") {
+      return (!target.baseUrl || isUrlOnDomain(target.baseUrl, "api.openai.com")) &&
+        (target.auth?.source?.toLowerCase() === "oauth" || Boolean(target.authError));
+    }
     const nativeId = target.providerId.toLowerCase() === "openai-codex";
     if (target.baseUrl) return isUrlOnDomain(target.baseUrl, "chatgpt.com");
     return nativeId;
   },
   async fetch({ target, signal, fetchFn }): Promise<UsageSnapshot> {
     const fetchedAt = new Date().toISOString();
+    if (target.providerId.toLowerCase() === "openai") {
+      // The new OAuth grant permits public Responses inference only. Never
+      // send it to wham/usage or fall back to a different legacy account.
+      const authenticated = target.auth?.source?.toLowerCase() === "oauth" && Boolean(target.auth.auth.apiKey);
+      return {
+        adapterId: this.id,
+        sourceProviderId: target.providerId,
+        displayName: "OpenAI (ChatGPT)",
+        state: authenticated ? "empty" : "unauthorized",
+        fetchedAt,
+        accounts: authenticated ? [{
+          id: "openai-chatgpt",
+          provider: "openai",
+          label: "ChatGPT subscription",
+          metrics: [{ kind: "status", id: "chatgpt-usage-page", label: "View usage", value: "https://chatgpt.com/settings/usage" }],
+        }] : [],
+        ...(authenticated ? {
+          summary: "Quota API unavailable · see ChatGPT Settings → Usage",
+          diagnostic: "Sign in with ChatGPT does not expose a documented quota API. Legacy Codex quota queries, /fast and /reset require the separate openai-codex login.",
+        } : { error: "Sign in with ChatGPT requires Pi's OpenAI OAuth login." }),
+      };
+    }
     const authRecord = target.auth?.auth as Record<string, unknown> | undefined;
     let accessToken = (authRecord?.apiKey ?? authRecord?.access) as string | undefined;
     let accountId = (authRecord?.accountId ?? authRecord?.chatgpt_account_id) as string | undefined;

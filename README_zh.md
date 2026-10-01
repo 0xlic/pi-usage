@@ -114,7 +114,8 @@ Pi 暂时没有提供独立的 `skill_invoked` 事件。Pi Usage 会在以下两
 
 | 服务商 | 支持级别 | 认证方式 | 显示内容 |
 | --- | --- | --- | --- |
-| OpenAI Codex | 完整额度 | ChatGPT Plus/Pro OAuth | 5 小时和 7 天额度及重置时间 |
+| OpenAI（新官方登录） | 登录识别 / 额度入口 | Sign in with ChatGPT OAuth | 显示 ChatGPT Usage 链接；新授权未提供公开额度查询 API |
+| OpenAI Codex（legacy） | 完整额度 | ChatGPT Plus/Pro OAuth | 保留 5 小时和 7 天额度及重置时间 |
 | Antigravity | 按模型额度 | Antigravity OAuth（如 `pi-antigravity`） | Cloud Code Assist 返回的剩余额度与重置时间 |
 | Anthropic Claude | 完整或有限 | Claude OAuth 或 API Key | OAuth 订阅额度；API Key 只显示请求数和 Token 限流余量 |
 | DeepSeek | 余额 | API Key | 官方接口返回的各币种余额 |
@@ -132,6 +133,8 @@ Pi 暂时没有提供独立的 `skill_invoked` 事件。Pi Usage 会在以下两
 原生服务商通过官方域名查询，并使用 Pi 已解析的认证信息。只有服务商返回重置时间时，插件才会显示倒计时。
 
 CLIProxyAPI 需要在服务端安装 [`pi-bridge`](https://github.com/abix5/pi-cliproxyapi-bridge)。Pi Usage 使用普通代理 API Key，不会请求或保存 CLIProxyAPI Management Key。界面只展示桥接接口实际返回的账户和额度池。
+
+新版 Pi 的 `OpenAI ✓ stored` 对应 `openai` provider；`OpenAI Codex (legacy)` 对应独立的 `openai-codex` provider。扩展识别新的 OAuth 登录，但不会把新 token 发送到旧 Codex 的内部接口，也不会读取旧账户冒充当前账户。新登录的额度请在 https://chatgpt.com/settings/usage 查看；`/fast` 和 `/reset` 仍仅支持 legacy Codex。普通 OpenAI API Key 不视为 ChatGPT 订阅。两种登录共用现有的 `adapters.openaiCodex.enabled` 配置。
 
 当前使用官方 OpenAI Codex 模型时，`/usage current` 会显示接口返回的剩余重置次数。`/reset` 会列出可用重置卡及有效期，默认选中最早到期的一张；选择后仍需二次明确确认才会兑换，取消不会发送修改请求。只允许当前 ChatGPT OAuth 账户使用，代理和 API Key 不支持。成功后刷新额度。此功能依赖 ChatGPT 未公开文档的内部接口，可能变更。
 

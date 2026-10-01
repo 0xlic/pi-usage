@@ -114,6 +114,7 @@ export class ProviderUsageController {
     // 3. Known standard providers with configured auth
     const knownProviders = [
       "deepseek",
+      "openai",
       "openai-codex",
       "xai",
       "anthropic",

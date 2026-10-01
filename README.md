@@ -114,7 +114,8 @@ The same Skill is counted once per agent run, so a `/skill:name` command followe
 
 | Provider | Level | Authentication | Displayed data |
 | --- | --- | --- | --- |
-| OpenAI Codex | Full quota | ChatGPT Plus/Pro OAuth | 5-hour and 7-day quota with reset times |
+| OpenAI (new official login) | Login recognition / usage link | Sign in with ChatGPT OAuth | Links to ChatGPT Usage; the new grant has no documented quota API |
+| OpenAI Codex (legacy) | Full quota | ChatGPT Plus/Pro OAuth | Retains 5-hour and 7-day quota with reset times |
 | Antigravity | Per-model quota | Antigravity OAuth (e.g. `pi-antigravity`) | Remaining fraction and reset time returned by Cloud Code Assist |
 | Anthropic Claude | Full or limited | Claude OAuth or API key | OAuth subscription windows; API keys show request/token rate-limit headroom |
 | DeepSeek | Balance | API key | Official balances by currency |
@@ -130,6 +131,8 @@ The same Skill is counted once per agent run, so a `/skill:name` command followe
 ### How provider data is handled
 
 Native providers are queried through their official origins using authentication resolved by Pi. Reset countdowns are shown only when the provider returns a reset timestamp.
+
+In newer Pi versions, `OpenAI ✓ stored` uses the `openai` provider, while `OpenAI Codex (legacy)` uses the separate `openai-codex` provider. The extension recognizes the new OAuth login but never sends its token to legacy Codex internal endpoints or substitutes a legacy account. View new-login usage at https://chatgpt.com/settings/usage; `/fast` and `/reset` remain legacy Codex only. Ordinary OpenAI API keys are not treated as ChatGPT subscriptions. Both login paths use the existing `adapters.openaiCodex.enabled` setting.
 
 For the active official OpenAI Codex model, `/usage current` also shows saved usage-limit resets when reported. Run `/reset` to list available earned reset credits with expiration dates. The earliest-expiring credit is selected by default. After selecting a credit, a second explicit confirmation is required before redemption; cancellation sends no mutation. Only the currently selected ChatGPT OAuth account can redeem a reset (not a proxy or API key). After redemption, quota data is refreshed. This uses undocumented ChatGPT endpoints that may change.
 
