@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { readStoredCredential } from "@earendil-works/pi-coding-agent";
 import type { ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
 import { sameOriginFetch } from "../../core/security.ts";
+import { isCodexProvider } from "./codex-account.ts";
 
 const ORIGIN = "https://chatgpt.com";
 const CREDITS = new URL("/backend-api/wham/rate-limit-reset-credits", ORIGIN);
@@ -10,7 +11,7 @@ const CONSUME = new URL(`${CREDITS.pathname}/consume`, ORIGIN);
 export interface ResetCredit { id?: string; title: string; description: string; expiresAt?: string }
 export interface ResetAvailability { count: number; options: ResetCredit[] }
 export interface ResetOutcome { code: "reset" | "nothing_to_reset" | "no_credit" | "already_redeemed"; windowsReset: number }
-interface ResetAuth { token: string; accountId: string; modelId: string }
+interface ResetAuth { token: string; accountId: string; modelId: string; providerId: string }
 
 function text(value: unknown, fallback: string): string {
   return typeof value === "string" && value.trim()
@@ -26,15 +27,15 @@ export async function resolveResetAuth(
   ctx: ExtensionCommandContext,
   stored: typeof readStoredCredential = readStoredCredential,
 ): Promise<ResetAuth> {
-  const model = ctx.model;
-  if (model?.provider !== "openai-codex" || model.api !== "openai-codex-responses" ||
+  const model = ctx.model ? { ...ctx.model } : undefined;
+  if (!model || !isCodexProvider(model.provider) || model.api !== "openai-codex-responses" ||
       !model.baseUrl || new URL(model.baseUrl).origin !== ORIGIN) {
     throw new Error("Usage limit resets require the active official OpenAI Codex model.");
   }
   // Resolving auth may refresh the OAuth token in auth.json. Read the stored
   // credential afterwards so a successful refresh is not mistaken for an account change.
-  const resolved = await ctx.modelRegistry.getProviderAuth("openai-codex");
-  const credential = stored("openai-codex");
+  const resolved = await ctx.modelRegistry.getProviderAuth(model.provider);
+  const credential = stored(model.provider);
   if (credential?.type !== "oauth" || !headerValue(credential.access, 16_384) || !headerValue(credential.accountId)) {
     throw new Error("Usage limit resets require Pi's OpenAI Codex OAuth login with an account ID.");
   }
@@ -45,11 +46,11 @@ export async function resolveResetAuth(
   if (resolved?.auth.apiKey !== credential.access) {
     throw new Error("The active Codex credential does not match Pi's OAuth account.");
   }
-  return { token: credential.access, accountId: credential.accountId, modelId: model.id };
+  return { token: credential.access, accountId: credential.accountId, modelId: model.id, providerId: model.provider };
 }
 
 function unchanged(left: ResetAuth, right: ResetAuth): boolean {
-  return left.modelId === right.modelId && left.token === right.token && left.accountId === right.accountId;
+  return left.providerId === right.providerId && left.modelId === right.modelId && left.token === right.token && left.accountId === right.accountId;
 }
 
 async function request(url: URL, auth: ResetAuth, signal: AbortSignal, fetchFn: typeof fetch, body?: object): Promise<Record<string, unknown>> {
@@ -128,7 +129,7 @@ export async function redeemCodexReset(
   if (index < 0) return undefined;
   const option = options[index]!;
   const confirmed = await ctx.ui.confirm("Redeem this saved Codex reset?",
-    `${option.title}\nExpires: ${expiration(option)}\n${option.description}\nThis consumes one saved reset for the current Codex account. Continue?`);
+    `${initial.providerId}\n${option.title}\nExpires: ${expiration(option)}\n${option.description}\nThis consumes one saved reset for the current Codex account. Continue?`);
   if (!confirmed) return undefined;
   const current = await resolveResetAuth(ctx, stored);
   if (!unchanged(initial, current)) throw new Error("Codex model or account changed; reset not used.");

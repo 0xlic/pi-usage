@@ -136,6 +136,8 @@ CLIProxyAPI 需要在服务端安装 [`pi-bridge`](https://github.com/abix5/pi-c
 
 新版 Pi 的 `OpenAI ✓ stored` 对应 `openai` provider；`OpenAI Codex (legacy)` 对应独立的 `openai-codex` provider。扩展识别新的 OAuth 登录，但不会把新 token 发送到旧 Codex 的内部接口，也不会读取旧账户冒充当前账户。新登录的额度请在 https://chatgpt.com/settings/usage 查看；`/fast` 和 `/reset` 仍仅支持 legacy Codex。普通 OpenAI API Key 不视为 ChatGPT 订阅。两种登录共用现有的 `adapters.openaiCodex.enabled` 配置。
 
+`openai-codex-*` 账号分身（后缀由用户自定义）同样支持用量查询、`/fast` 和 `/reset`，无需逐个配置。认证按完整 provider ID 从 Pi 解析，并仅从 `auth.json` 对应项补齐匹配凭据的账户信息，不回退到默认账号。官方地址和模型限制仍然生效；`/reset` 确认后若切换 provider 或账户则取消兑换。Fast 开关仍为全局设置，在支持的原生账号和分身间共用。
+
 当前使用官方 OpenAI Codex 模型时，`/usage current` 会显示接口返回的剩余重置次数。`/reset` 会列出可用重置卡及有效期，默认选中最早到期的一张；选择后仍需二次明确确认才会兑换，取消不会发送修改请求。只允许当前 ChatGPT OAuth 账户使用，代理和 API Key 不支持。成功后刷新额度。此功能依赖 ChatGPT 未公开文档的内部接口，可能变更。
 
 `/fast` 切换 Codex Fast（约快 1.5 倍，但会消耗更多套餐额度）。仅对 `https://chatgpt.com` 官方 `openai-codex-responses` 模型 `gpt-5.4`、`gpt-5.5`、`gpt-5.6-sol`、`gpt-5.6-terra`、`gpt-5.6-luna` 生效，代理和不支持的模型不会修改请求。开启时发送 `service_tier: "priority"`，关闭时发送 `"default"`。默认关闭，设置保存在 `~/.pi/agent/pi-usage/codex-fast.json`；配置文件损坏时不会覆盖。

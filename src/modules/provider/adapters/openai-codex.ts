@@ -1,6 +1,4 @@
-import { getAgentDir } from "@earendil-works/pi-coding-agent";
-import { readFile } from "node:fs/promises";
-import { join } from "node:path";
+import { isCodexProvider, resolveCodexUsageAuth } from "../codex-account.ts";
 import type { Metric, UsageAdapter, UsageSnapshot } from "../../../core/types.ts";
 import { isUrlOnDomain, safeError, sameOriginFetch } from "../../../core/security.ts";
 import { compactQuotaSummary } from "../../../ui/format.ts";
@@ -69,24 +67,6 @@ function parseWindow(
   };
 }
 
-async function resolveLocalCodexAuth(): Promise<{ accessToken?: string | undefined; accountId?: string | undefined }> {
-  try {
-    const authPath = join(getAgentDir(), "auth.json");
-    const raw = await readFile(authPath, "utf8");
-    const parsed = JSON.parse(raw) as Record<string, { access?: string; apiKey?: string; accountId?: string; chatgpt_account_id?: string }>;
-    const codex = parsed["openai-codex"];
-    if (codex) {
-      return {
-        accessToken: codex.access ?? codex.apiKey,
-        accountId: codex.accountId ?? codex.chatgpt_account_id,
-      };
-    }
-  } catch {
-    // Ignore fallback errors
-  }
-  return {};
-}
-
 export const openAICodexAdapter: UsageAdapter = {
   id: "openai-codex",
   label: "OpenAI / OpenAI Codex (ChatGPT)",
@@ -97,7 +77,7 @@ export const openAICodexAdapter: UsageAdapter = {
       return (!target.baseUrl || isUrlOnDomain(target.baseUrl, "api.openai.com")) &&
         (target.auth?.source?.toLowerCase() === "oauth" || Boolean(target.authError));
     }
-    const nativeId = target.providerId.toLowerCase() === "openai-codex";
+    const nativeId = isCodexProvider(target.providerId);
     if (target.baseUrl) return isUrlOnDomain(target.baseUrl, "chatgpt.com");
     return nativeId;
   },
@@ -125,25 +105,20 @@ export const openAICodexAdapter: UsageAdapter = {
         } : { error: "Sign in with ChatGPT requires Pi's OpenAI OAuth login." }),
       };
     }
+    const displayName = target.providerId === "openai-codex"
+      ? "OpenAI Codex" : target.provider?.name ?? target.providerId;
     const authRecord = target.auth?.auth as Record<string, unknown> | undefined;
-    let accessToken = (authRecord?.apiKey ?? authRecord?.access) as string | undefined;
-    let accountId = (authRecord?.accountId ?? authRecord?.chatgpt_account_id) as string | undefined;
-
-    if (!accessToken || !accountId) {
-      const local = await resolveLocalCodexAuth();
-      accessToken = accessToken ?? local.accessToken;
-      accountId = accountId ?? local.accountId;
-    }
+    const { accessToken, accountId } = resolveCodexUsageAuth(target.providerId, authRecord);
 
     if (!accessToken) {
       return {
         adapterId: this.id,
         sourceProviderId: target.providerId,
-        displayName: "OpenAI Codex",
+        displayName,
         state: "unauthorized",
         fetchedAt,
         accounts: [],
-        error: "No access token found in Pi auth for openai-codex",
+        error: `No access token found in Pi auth for ${target.providerId}`,
       };
     }
 
@@ -168,7 +143,7 @@ export const openAICodexAdapter: UsageAdapter = {
         return {
           adapterId: this.id,
           sourceProviderId: target.providerId,
-          displayName: "OpenAI Codex",
+          displayName,
           state: "unauthorized",
           fetchedAt,
           accounts: [],
@@ -227,7 +202,7 @@ export const openAICodexAdapter: UsageAdapter = {
       return {
         adapterId: this.id,
         sourceProviderId: target.providerId,
-        displayName: "OpenAI Codex",
+        displayName,
         state: metrics.length ? "ok" : "empty",
         fetchedAt,
         accounts,

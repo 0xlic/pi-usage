@@ -28,6 +28,38 @@ function setup() {
   return { ctx, stored, calls, notices, selections, confirmations, fetchFn, confirm: () => { confirmed = true; } };
 }
 
+test("Codex alias reset resolves the exact provider and sends its account header", async () => {
+  const t = setup();
+  t.ctx.model.provider = "openai-codex-custom-work-2";
+  t.ctx.modelRegistry.getProviderAuth = async (id: string) => {
+    assert.equal(id, "openai-codex-custom-work-2");
+    return { auth: { apiKey: "alias-token" } };
+  };
+  const stored: any = (id: string) => {
+    assert.equal(id, "openai-codex-custom-work-2");
+    return { type: "oauth", access: "alias-token", accountId: "alias-account" };
+  };
+  t.confirm();
+  assert.equal((await redeemCodexReset(t.ctx, 10, t.fetchFn, stored))?.code, "reset");
+  for (const call of t.calls) {
+    const headers = new Headers(call.init.headers);
+    assert.equal(headers.get("Authorization"), "Bearer alias-token");
+    assert.equal(headers.get("chatgpt-account-id"), "alias-account");
+  }
+  assert.match(t.confirmations[0]!, /openai-codex-custom-work-2/);
+});
+
+test("reset refuses provider switches even when model, token and account are identical", async () => {
+  const t = setup();
+  t.ctx.model.provider = "openai-codex-first";
+  t.ctx.ui.confirm = async () => {
+    t.ctx.model = { ...t.ctx.model, provider: "openai-codex-second" };
+    return true;
+  };
+  await assert.rejects(() => redeemCodexReset(t.ctx, 10, t.fetchFn, t.stored), /changed/);
+  assert.equal(t.calls.filter((call) => call.init.method === "POST").length, 0);
+});
+
 test("Codex reset normalizes credits and validates outcomes", () => {
   assert.deepEqual(parseResetCredits({ available_count: "1", credits: [] }).options.map((x) => x.title), ["Full reset"]);
   assert.throws(() => parseResetCredits({ available_count: -1 }), /count/);

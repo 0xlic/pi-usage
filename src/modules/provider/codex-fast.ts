@@ -4,6 +4,7 @@ import type { Api, Model } from "@earendil-works/pi-ai";
 import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { safeError } from "../../core/security.ts";
+import { isCodexProvider } from "./codex-account.ts";
 
 // Conservative allowlist: do not send unsupported tiers to a proxy or an unknown model.
 export const FAST_MODELS = new Set(["gpt-5.4", "gpt-5.5", "gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna"]);
@@ -11,7 +12,7 @@ export const FAST_WARNING = "Fast is about 1.5× faster and uses more of your pl
 export function fastPath(): string { return join(getAgentDir(), "pi-usage", "codex-fast.json"); }
 
 export function fastAvailability(model: Model<Api> | undefined): string | undefined {
-  if (model?.provider !== "openai-codex" || model.api !== "openai-codex-responses") return "Fast requires the active official Codex Responses model.";
+  if (!model || !isCodexProvider(model.provider) || model.api !== "openai-codex-responses") return "Fast requires the active official Codex Responses model.";
   try {
     if (new URL(model.baseUrl).origin !== "https://chatgpt.com") return "Fast is not available through a proxy.";
   } catch { return "Fast requires the official ChatGPT endpoint."; }

@@ -14,6 +14,11 @@ test("Fast only rewrites supported official Codex requests, never proxies", () =
   assert.equal(fastPayload({}, { ...model, id: "gpt-6-sol" }, true), undefined);
   assert.equal(fastAvailability({ ...model, id: "gpt-6-sol" }), "gpt-6-sol does not advertise Codex Fast support.");
   assert.equal(fastPayload({}, { ...model, provider: "custom" }, true), undefined);
+  for (const provider of ["openai-codex-work-2", "openai-codex-personal"]) {
+    assert.deepEqual(fastPayload({}, { ...model, provider }, true), { service_tier: "priority" });
+    assert.deepEqual(fastPayload({}, { ...model, provider }, false), { service_tier: "default" });
+    assert.equal(fastPayload({}, { ...model, provider, baseUrl: "https://proxy.example/v1" }, true), undefined);
+  }
 });
 
 test("/fast persists toggle, refuses invalid config and requires supported model", async () => {
