@@ -113,8 +113,8 @@ export async function redeemCodexReset(
 ): Promise<ResetOutcome | undefined> {
   if (!ctx.hasUI) throw new Error("/reset requires TUI or RPC confirmation.");
   const initial = await resolveResetAuth(ctx, stored);
-  const signal = AbortSignal.timeout(timeoutSeconds * 1000);
-  const availability = parseResetCredits(await request(CREDITS, initial, signal, fetchFn));
+  const availability = parseResetCredits(await request(CREDITS, initial,
+    AbortSignal.timeout(timeoutSeconds * 1000), fetchFn));
   if (!availability.count) {
     ctx.ui.notify("No saved Codex usage limit resets are available.", "info");
     return undefined;
@@ -133,7 +133,17 @@ export async function redeemCodexReset(
   if (!confirmed) return undefined;
   const current = await resolveResetAuth(ctx, stored);
   if (!unchanged(initial, current)) throw new Error("Codex model or account changed; reset not used.");
-  const outcome = parseResetOutcome(await request(CONSUME, current, signal, fetchFn,
-    { redeem_request_id: randomUUID(), ...(option.id ? { credit_id: option.id } : {}) }));
-  return outcome;
+  // UI interaction and auth revalidation must not consume the mutation's timeout.
+  const signal = AbortSignal.timeout(timeoutSeconds * 1000);
+  try {
+    return parseResetOutcome(await request(CONSUME, current, signal, fetchFn,
+      { redeem_request_id: randomUUID(), ...(option.id ? { credit_id: option.id } : {}) }));
+  } catch (error) {
+    if (signal.aborted || (error instanceof Error && error.name === "TimeoutError")) {
+      // The server may have committed the mutation before the response timed out.
+      // Never automatically retry a request that consumes a credit.
+      throw new Error("Codex reset response timed out; the reset may already have succeeded. Check /usage refresh before redeeming another saved reset.");
+    }
+    throw error;
+  }
 }

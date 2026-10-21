@@ -102,6 +102,47 @@ test("Codex reset only posts to ChatGPT with matched OAuth and unique id", async
   assert.match(String(t.calls[1]?.init.body), /"credit_id":"credit-id"/);
 });
 
+test("Codex reset starts a fresh timeout after selection, confirmation and auth revalidation", async (testContext) => {
+  const t = setup();
+  const timers: AbortController[] = [];
+  testContext.mock.method(AbortSignal, "timeout", () => {
+    const controller = new AbortController();
+    timers.push(controller);
+    return controller.signal;
+  });
+  t.ctx.ui.select = async (_: string, choices: string[]) => {
+    timers[0]!.abort(new DOMException("Timed out", "TimeoutError"));
+    return choices[0];
+  };
+  t.ctx.ui.confirm = async () => {
+    assert.equal(timers.length, 1);
+    return true;
+  };
+  const fetchFn: typeof fetch = async (input, init) => {
+    init!.signal!.throwIfAborted();
+    return t.fetchFn(input, init);
+  };
+  assert.equal((await redeemCodexReset(t.ctx, 10, fetchFn, t.stored))?.code, "reset");
+  assert.equal(timers.length, 2);
+  assert.notEqual(t.calls[0]!.init.signal, t.calls[1]!.init.signal);
+});
+
+test("Codex reset warns of an uncertain outcome on response timeout without retrying", async () => {
+  const t = setup();
+  t.confirm();
+  const fetchFn: typeof fetch = async (input, init) => {
+    const response = await t.fetchFn(input, init);
+    if (init?.method === "POST") {
+      // The mutation succeeded, but reading its response timed out.
+      response.json = async () => { throw new DOMException("Timed out", "TimeoutError"); };
+    }
+    return response;
+  };
+  await assert.rejects(() => redeemCodexReset(t.ctx, 10, fetchFn, t.stored),
+    /may already have succeeded.*Check \/usage refresh/);
+  assert.equal(t.calls.filter((call) => call.init.method === "POST").length, 1);
+});
+
 test("/reset lists credits by nearest expiration and confirms the chosen credit", async () => {
   const t = setup();
   const fetchFn: typeof fetch = async (input, init) => {
