@@ -10,7 +10,6 @@ export function antigravityQuotaMetric(metrics: Metric[], publicId: string, thin
   );
   const exact = matches(id);
   if (exact) return exact;
-  if (/^gemini-3\.[78]-flash$/.test(id)) return matches(`${id}-tiered`);
   if (/^claude-(?:opus|sonnet)-\d+(?:[.-]\d+)*$/.test(id)) {
     const tier = thinking === "high" || thinking === "xhigh" ? "high" : thinking === "medium" ? "medium" : "low";
     const tiered = matches(`${id}-${tier}`);
@@ -19,9 +18,9 @@ export function antigravityQuotaMetric(metrics: Metric[], publicId: string, thin
   if (/^claude-opus-/.test(id)) return matches(`${id}-thinking`);
   if (id === "gpt-oss-120b") return matches(`${id}-medium`);
   if (/^gemini-3\.1-pro$/.test(id)) return matches(`${id}-${thinking === "high" || thinking === "xhigh" ? "high" : "low"}`);
-  if (/^gemini-3\.[56]-flash$/.test(id)) {
+  if (/^(?:gemini-3\.[5-8]-flash|gemini-4-argon)$/.test(id)) {
     const tier = thinking === "high" || thinking === "xhigh" ? "high" : thinking === "medium" ? "medium" : "low";
-    return matches(`${id}-${tier}`);
+    return matches(`${id}-${tier}`) ?? (/^gemini-3\.[78]-flash$/.test(id) ? matches(`${id}-tiered`) : undefined);
   }
   return undefined;
 }

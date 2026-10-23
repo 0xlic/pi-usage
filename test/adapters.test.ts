@@ -30,6 +30,8 @@ test("Antigravity fetches project-scoped model quotas without contacting custom 
       requests++;
       assert.equal(String(input), "https://cloudcode-pa.googleapis.com/v1internal:fetchAvailableModels");
       assert.equal(init?.method, "POST");
+      assert.equal(new Headers(init?.headers).get("User-Agent"),
+        "antigravity/cli/1.4.0 (aidev_client; os_type=linux; arch=amd64; cl=982146307; auth_method=consumer)");
       assert.deepEqual(JSON.parse(String(init?.body)), { project: "project-test" });
       assert.equal(new Headers(init?.headers).get("Authorization"), "Bearer token");
       return new Response(body, { status: 200 });

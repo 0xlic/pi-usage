@@ -8,6 +8,8 @@ import { antigravityQuotaMetric } from "../antigravity-model.ts";
 
 const ORIGIN = "https://cloudcode-pa.googleapis.com";
 const PATH = "/v1internal:fetchAvailableModels";
+// Catalog visibility is version-gated; keep aligned with pi-antigravity's CLI fingerprint.
+const USER_AGENT = "antigravity/cli/1.4.0 (aidev_client; os_type=linux; arch=amd64; cl=982146307; auth_method=consumer)";
 
 interface ModelInfo {
   displayName?: string;
@@ -63,7 +65,7 @@ export const antigravityAdapter: UsageAdapter = {
           Authorization: `Bearer ${token}`,
           Accept: "application/json",
           "Content-Type": "application/json",
-          "User-Agent": "antigravity",
+          "User-Agent": USER_AGENT,
         },
         body: JSON.stringify({ project: projectId }),
         signal,

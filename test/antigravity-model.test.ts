@@ -9,8 +9,7 @@ const quota = (id: string, remainingFraction = 0.9): Metric => ({
   kind: "quota-window", id, label: id, remainingFraction,
 });
 
-for (const family of ["opus", "sonnet"]) {
-  const id = `claude-${family}-5-5`;
+for (const id of ["claude-opus-5-5", "claude-sonnet-5-5", "gemini-4-argon", "gemini-3.8-flash", "gemini-3.7-flash", "gemini-3.6-flash", "gemini-3.5-flash"]) {
   const metrics = ["low", "medium", "high"].map((tier) => quota(`${id}-${tier}`));
 
   test(`Antigravity matches ${id} thinking levels to quota tiers`, () => {
@@ -24,7 +23,7 @@ for (const family of ["opus", "sonnet"]) {
     }
     assert.equal(antigravityQuotaMetric(metrics, `${id}-medium`, "high")?.id, `${id}-medium`);
     assert.equal(antigravityQuotaMetric(metrics.slice(0, 1), id, "high"), undefined);
-    assert.equal(antigravityQuotaMetric(metrics, `claude-${family}-4-6`, "high"), undefined);
+    assert.equal(antigravityQuotaMetric(metrics, "unrelated-model", "high"), undefined);
   });
 
   test(`Antigravity status summary displays ${id} quota`, () => {
@@ -40,6 +39,20 @@ for (const family of ["opus", "sonnet"]) {
     assert.match(view?.summary ?? "", /90%/);
   });
 }
+
+test("Antigravity prefers Gemini tier quotas but supports legacy tiered catalogs", () => {
+  for (const id of ["gemini-3.7-flash", "gemini-3.8-flash"]) {
+    const legacy = quota(`${id}-tiered`, 0.8);
+    const high = quota(`${id}-high`, 0.4);
+    assert.equal(antigravityQuotaMetric([legacy], id, "high"), legacy);
+    assert.equal(antigravityQuotaMetric([legacy, high], id, "high"), high);
+    const exact = quota(id, 0.5);
+    assert.equal(antigravityQuotaMetric([legacy, high, exact], id, "high"), exact);
+  }
+  assert.equal(antigravityQuotaMetric([quota("gemini-3.8-flash-high")], "gemini-4-argon", "high"), undefined);
+  const exact = quota("gemini-4-argon", 0.5);
+  assert.equal(antigravityQuotaMetric([quota("gemini-4-argon-high"), exact], "gemini-4-argon", "high"), exact);
+});
 
 test("Antigravity preserves exact Claude IDs and legacy Opus thinking aliases", () => {
   const id = "claude-opus-4-6";
